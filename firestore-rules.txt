@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         request.auth.token.email == 'admin@nds.com' || 
+         request.auth.token.email == 'it@nds.com');
+      allow read: if request.auth != null && request.auth.token.email == 'admin@nds.com';
+    }
+    
+    // Attendance collection - Cross-device data access
+    match /attendance/{attendanceId} {
+      // Users can read/write their own attendance records from any device
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         request.auth.token.email == 'admin@nds.com');
+      // Allow creation if user is authenticated and setting their own userId
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+      // Admin can create/update any attendance record
+      allow create, update: if request.auth != null && 
+         request.auth.token.email == 'admin@nds.com';
+    }
+    
+    // IP Settings collection - IT admin can read/write
+    match /ipSettings/{document=**} {
+      allow read, write: if request.auth != null && request.auth.token.email == 'it@nds.com';
+    }
+    
+    // Admin access to everything
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.token.email == 'admin@nds.com';
+    }
+  }
+}
